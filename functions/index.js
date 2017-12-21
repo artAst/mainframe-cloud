@@ -2,7 +2,8 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp(functions.config().firebase);
-const mailerModule = require('./mframe_mailer');
+const mailerModule = require('./sendgrid_mailer');
+//const mailerModule = require('./mframe_mailer');
 //const firebaseAuth = require('./mframe_auth');
 //const authTestModule = require('./testAuth');
 
