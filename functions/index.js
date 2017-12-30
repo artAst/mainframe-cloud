@@ -3,6 +3,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp(functions.config().firebase);
 const mailerModule = require('./sendgrid_mailer');
+const fbModule = require('./request_fb_info');
 //const mailerModule = require('./mframe_mailer');
 //const firebaseAuth = require('./mframe_auth');
 //const authTestModule = require('./testAuth');
@@ -22,3 +23,15 @@ exports.sendMail = functions.database.ref(dbListenPath).onCreate(event => {
   mailerModule.handler(dance_partner);
   return event.data.ref.set(dance_partner);
 });
+
+const fbRequestPath = '/fb_tokens/{userId}/fbToken';
+exports.fbPullInfo = functions.database.ref(fbRequestPath).onCreate(event => {
+	const fbToken = event.data.val();
+	const uid = event.params.userId;
+	console.log("token: "+fbToken);
+	fbModule.handler(fbToken, uid);
+	return event.data.ref.set(fbToken);
+});
+/*exports.testFBReq = functions.https.onRequest((request, response) => {
+  fbModule.handler(request, response);
+});*/
