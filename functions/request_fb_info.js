@@ -11,13 +11,16 @@ var dateFormat = require('dateformat');
 	res.status(200).send("Success!");
 }*/
 
+const _appId = '137803466893195';
+const _appSec = 'd8f31f3e79a4cf40deaa87899e213c58';
 var db = admin.database();
 var usersRef = db.ref("users");
+var taggableRef = db.ref("taggable_friends");
 
 exports.handler = function(token, uid) {
 	var now = new Date();
     FB.options({version: 'v2.4'});
-    var fooApp = FB.extend({appId: '86060211695', appSecret: '288b6d6471fc6016daf90d918b8d0f33'});
+    var fooApp = FB.extend({appId: _appId, appSecret: _appSec});
     fooApp.setAccessToken(token);
     // get user information
 	fooApp.api('me', { fields: 'id,first_name,last_name,gender,email,birthday,picture' }, function (res) {
@@ -33,14 +36,42 @@ exports.handler = function(token, uid) {
 	    });
 	});
 	// get taggable friends for users
-	fooApp.api('me/taggable_friends', { fields: 'id,first_name,last_name,picture' }, function (res) {
-		console.log(res);
-		usersRef.child(uid).child("taggable_fb_friends").push().set({
-			birthday: dateFormat(now, "mm/dd/yyyy"),
-			displayPhotoUrl: res.picture != null ? res.picture.data.url : "",
-			facebook_userId: res.id,
-			first_name: res.first_name,
-			last_name: res.last_name
-		});
+	requestTaggableFriends(fooApp, uid, "");
+}
+
+function requestTaggableFriends(fooApp, uid, after) {
+	var now = new Date();
+	var uri = "me/taggable_friends";
+	var _params = {};
+	_params['fields'] = 'id,first_name,last_name,picture';
+	if(after != "") {
+		//uri += "&after="+after;
+		_params['after'] = after;
+    }
+
+	fooApp.api(uri, _params, function (res) {
+		//console.log(res);
+		//console.log(res.data.length);
+		//console.log(res.data[0]);
+		for(var i=0; i < res.data.length; i++) {
+			//console.log(res.data[i]);
+			taggableRef.child(uid).push().set({
+				birthday: dateFormat(now, "mm/dd/yyyy"),
+				displayPhotoUrl: res.data[i].picture != null ? res.data[i].picture.data.url : "",
+				//facebook_userId: "${itm.id}",
+				first_name: res.data[i].first_name,
+				last_name: res.data[i].last_name
+			});
+		}
+
+		if(res.paging != null){
+			var _aft = "";
+			var _cursors = res.paging.cursors;
+			if(_cursors != null) {
+				_aft = _cursors.after;
+				console.log(_aft);
+				requestTaggableFriends(fooApp, uid, _aft);
+			}
+		}
 	});
 }
