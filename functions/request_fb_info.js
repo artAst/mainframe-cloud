@@ -15,7 +15,7 @@ const _appId = '137803466893195';
 const _appSec = 'd8f31f3e79a4cf40deaa87899e213c58';
 var db = admin.database();
 var usersRef = db.ref("users");
-var taggableRef = db.ref("taggable_friends");
+var taggableRef = usersRef.child("taggable_friends");
 
 exports.handler = function(token, uid) {
 	var now = new Date();
@@ -25,7 +25,7 @@ exports.handler = function(token, uid) {
     // get user information
 	fooApp.api('me', { fields: 'id,first_name,last_name,gender,email,birthday,picture' }, function (res) {
 	    console.log(res);
-	    usersRef.child(uid).set({
+	    usersRef.child(uid).child("info").set({
 	    	birthday: res.birthday != null ? res.birthday : dateFormat(now, "mm/dd/yyyy"),
 	    	displayPhotoUrl: res.picture != null ? res.picture.data.url : "",
 	    	email: res.email,
@@ -55,7 +55,7 @@ function requestTaggableFriends(fooApp, uid, after) {
 		//console.log(res.data[0]);
 		for(var i=0; i < res.data.length; i++) {
 			//console.log(res.data[i]);
-			taggableRef.child(uid).push().set({
+			usersRef.child(uid).child("taggable_friends").push().set({
 				birthday: dateFormat(now, "mm/dd/yyyy"),
 				displayPhotoUrl: res.data[i].picture != null ? res.data[i].picture.data.url : "",
 				//facebook_userId: "${itm.id}",
