@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 admin.initializeApp(functions.config().firebase);
 const mailerModule = require('./sendgrid_mailer');
 const fbModule = require('./request_fb_info');
+const stripeModule = require('./payment_stripe');
 //const mailerModule = require('./mframe_mailer');
 //const firebaseAuth = require('./mframe_auth');
 //const authTestModule = require('./testAuth');
@@ -31,6 +32,10 @@ exports.fbPullInfo = functions.database.ref(fbRequestPath).onCreate(event => {
 	console.log("token: "+fbToken);
 	fbModule.handler(fbToken, uid);
 	return event.data.ref.set(fbToken);
+});
+
+exports.createStripeCharge = functions.database.ref('/stripe_payments/{userId}/{paymentId}').onWrite(event => {
+  return stripeModule.handler(event);
 });
 /*exports.testFBReq = functions.https.onRequest((request, response) => {
   fbModule.handler(request, response);
