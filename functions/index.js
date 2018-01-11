@@ -25,7 +25,7 @@ exports.sendMail = functions.database.ref(dbListenPath).onCreate(event => {
   return event.data.ref.set(dance_partner);
 });
 
-const fbRequestPath = '/fb_tokens/{userId}/fbToken';
+const fbRequestPath = '/users/{userId}/fb_tokens/fbToken';
 exports.fbPullInfo = functions.database.ref(fbRequestPath).onCreate(event => {
 	const fbToken = event.data.val();
 	const uid = event.params.userId;
