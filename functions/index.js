@@ -5,16 +5,6 @@ admin.initializeApp(functions.config().firebase);
 const mailerModule = require('./sendgrid_mailer');
 const fbModule = require('./request_fb_info');
 const stripeModule = require('./payment_stripe');
-//const mailerModule = require('./mframe_mailer');
-//const firebaseAuth = require('./mframe_auth');
-//const authTestModule = require('./testAuth');
-
-/*exports.testAuthEmail = functions.https.onRequest((request, response) => {
-  authTestModule.handler(request, response);
-});
-exports.sendMFEmail = functions.https.onRequest((request, response) => {
-  mailerModule.handler(request, response);
-});*/
 
 //exports.app = functions.https.onRequest(firebaseAuth.app);
 const dbListenPath = '/users/{userId}/dance_partners/{pushId}';
@@ -37,6 +27,7 @@ exports.fbPullInfo = functions.database.ref(fbRequestPath).onCreate(event => {
 exports.createStripeCharge = functions.database.ref('/stripe_payments/{userId}/{paymentId}').onWrite(event => {
   return stripeModule.handler(event);
 });
-/*exports.testFBReq = functions.https.onRequest((request, response) => {
-  fbModule.handler(request, response);
-});*/
+
+exports.deleteUserItems = functions.auth.user().onDelete(event => {
+  return admin.database().ref(`/users/${event.data.uid}`).remove();
+});
