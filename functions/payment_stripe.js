@@ -34,9 +34,13 @@ exports.handler = function(event) {
 	}, error => {
 	  // We want to capture errors and render them in a user-friendly way, while
 	  // still logging an exception with Stackdriver
-	  /*return admin.database()
+	  console.log('stripe error message', error.message);
+	  //console.log('stripe error:', error);
+	  return admin.database()
 	  				.ref(`/stripe_payments/${userId}/${paymentId}/error`)
-	  				.set(error);*/
-	  console.log('stripe error:', error);
+	  				.set({
+	  					"message": error.message,
+	  					"type": error.type
+	  				});
 	});
 }
