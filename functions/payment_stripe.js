@@ -21,7 +21,6 @@ exports.handler = function(event) {
 		const stripe = require('stripe')(stripeKey);
 		// Look up the Stripe customer id written in createStripeCustomer
 		return admin.database().ref(`/users/${userId}`).once('value').then(snapshot => {
-			console.log('entered users');
 			return snapshot.val();
 		}).then(customer => {
 			// Create a charge using the pushId as the idempotency key, protecting against double charges 
