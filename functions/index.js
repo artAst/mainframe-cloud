@@ -2,7 +2,14 @@
 const functions = require('firebase-functions');
 const request = require('request-promise');
 const admin = require('firebase-admin');
-admin.initializeApp(functions.config().firebase);
+
+var serviceAccount = require("./uberregister-5308a-firebase-adminsdk-cvq31-cc7bff5bf3.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://uberregister-5308a.firebaseio.com"
+});
+
 const mailerModule = require('./sendgrid_mailer');
 const fbModule = require('./request_fb_info');
 const stripeModule = require('./payment_stripe');
@@ -11,36 +18,36 @@ const invoiceMailerModule = require('./invoice_mailer');
 
 //exports.app = functions.https.onRequest(firebaseAuth.app);
 const dbListenPath = '/users/{userId}/dance_partners/{pushId}';
-exports.sendMail = functions.database.ref(dbListenPath).onCreate(event => {
-  const dance_partner = event.data.val();
+exports.sendMail = functions.database.ref(dbListenPath).onCreate((snap, context) => {
+  const dance_partner = snap.val();
   console.log(dance_partner.first_name);
   mailerModule.handler(dance_partner);
-  return event.data.ref.set(dance_partner);
+  return snap.ref.set(dance_partner);
 });
 
 const fbRequestPath = '/users/{userId}/fb_tokens/fbToken';
-exports.fbPullInfo = functions.database.ref(fbRequestPath).onCreate(event => {
-	const fbToken = event.data.val();
-	const uid = event.params.userId;
+exports.fbPullInfo = functions.database.ref(fbRequestPath).onCreate((snap, context) => {
+	const fbToken = snap.val();
+	const uid = context.params.userId;
 	console.log("token: "+fbToken);
 	fbModule.handler(fbToken, uid);
-	return event.data.ref.set(fbToken);
+	return snap.ref.set(fbToken);
 });
 
-exports.createStripeCharge = functions.database.ref('/stripe_payments/{userId}/{paymentId}').onWrite(event => {
-  return stripeModule.handler(event);
+exports.createStripeCharge = functions.database.ref('/stripe_payments/{userId}/{paymentId}').onWrite((change, context) => {
+  return stripeModule.handler(change, context);
 });
 
-exports.deleteUserItems = functions.auth.user().onDelete(event => {
-  return admin.database().ref(`/users/${event.data.uid}`).remove();
+exports.deleteUserItems = functions.auth.user().onDelete((user) => {
+  return admin.database().ref(`/users/${user.uid}`).remove();
 });
 
 const paymentsDBPath = '/stripe_payments/{user_id}/{payment_id}';
 const paymentsWebHookURL = 'https://ubersave.useradd.com/dev/SavePayments';
-exports.uberSavePayments = functions.database.ref(paymentsDBPath).onWrite(event => {
-	const newData = event.data.val();
-	const userID = event.params.user_id;
-	const paymentID = event.params.payment_id;
+exports.uberSavePayments = functions.database.ref(paymentsDBPath).onWrite((change, context) => {
+	const newData = change.after.val();
+	const userID = context.params.user_id;
+	const paymentID = context.params.payment_id;
 	var requestData = 'uid=' + userID + '&pid=' + paymentID + '&pdata=' + JSON.stringify(newData);
 	console.log('PAYMENTS requestData: ', requestData);
 	
@@ -61,9 +68,9 @@ exports.uberSavePayments = functions.database.ref(paymentsDBPath).onWrite(event 
 
 const usersDBPath = '/users/{user_id}';
 const usersWebHookURL = 'https://ubersave.useradd.com/dev/SaveUsers';
-exports.uberSaveUsers = functions.database.ref(usersDBPath).onWrite(event => {
-	const newData = event.data.val();
-	const userID = event.params.user_id;
+exports.uberSaveUsers = functions.database.ref(usersDBPath).onWrite((change, context) => {
+	const newData = change.after.val();
+	const userID = context.params.user_id;
 	var requestData = 'uid=' + userID + '&udata=' + JSON.stringify(newData);
 	console.log('USERS requestData: ', requestData);
 	
@@ -82,21 +89,21 @@ exports.uberSaveUsers = functions.database.ref(usersDBPath).onWrite(event => {
 
 });
 
-exports.welcomeNewUser = functions.auth.user().onCreate(event => {
-	const user = event.data;
+exports.welcomeNewUser = functions.auth.user().onCreate((userRecord, context) => {
+	const user = userRecord;
 	console.log("Welcoming new user: " + user.displayName + ", " + user.email);
 	return welcomeMailerModule.handler(user);
 });
 
-const paymentsChargeDBPath = '/stripe_payments/{user_id}/{payment_id}/charge/amount';
-exports.sendPaymentInvoice = functions.database.ref(paymentsChargeDBPath).onCreate(event => {
-	const paymentAmount = event.data.val();
-	const paymentUserID = event.params.user_id;
-	const paymentID = event.params.payment_id;	
+const paymentsInvoiceInfoPath = '/stripe_payments/{user_id}/{payment_id}/invoiceInfo';
+exports.sendPaymentInvoice = functions.database.ref(paymentsInvoiceInfoPath).onCreate((snap, context) => {
+	const invoiceInfo = snap.val();
+	const paymentUserID = context.params.user_id;
+	const paymentID = context.params.payment_id;	
 	
 	return admin.database().ref('/users/' + paymentUserID + '/info').once('value', (snapshot) => {
         var userInfo = snapshot.val();		
-		console.log("Sending payment invoice: uid:" + paymentUserID + ", pid:" + paymentID + ", email:" + userInfo.email + ", firstname:" + userInfo.first_name + ", lastname:" + userInfo.last_name + ", amount: " + paymentAmount);
-		invoiceMailerModule.handler(userInfo.email, userInfo.first_name + " " + userInfo.last_name, paymentAmount);
+		console.log("Sending payment invoice: uid:" + paymentUserID + ", pid:" + paymentID + ", email:" + userInfo.email + ", firstname:" + userInfo.first_name + ", lastname:" + userInfo.last_name + ", invoice_info: " + invoiceInfo);
+		invoiceMailerModule.handler(userInfo.email, userInfo.first_name + " " + userInfo.last_name, invoiceInfo);
      });
 });

@@ -6,10 +6,10 @@ const functions = require('firebase-functions'),
 
 const currency = functions.config().stripe.currency || 'USD';
 
-exports.handler = function(event) {
-	const val = event.data.val();
-	const paymentId = event.params.paymentId;
-	const userId = event.params.userId;
+exports.handler = function(change, context) {
+	const val = change.after.val();
+	const paymentId = context.params.paymentId;
+	const userId = context.params.userId;
 	
 	// This onWrite will trigger whenever anything is written to the path, so
 	// noop if the charge was deleted, errored out, or the Stripe API returned a result (id exists) 
@@ -25,7 +25,7 @@ exports.handler = function(event) {
 		}).then(customer => {
 			// Create a charge using the pushId as the idempotency key, protecting against double charges 
 			const amount = val.amount;
-			const idempotency_key = event.params.paymentId;
+			const idempotency_key = context.params.paymentId;
 			const source = val.tokenId;
 			let charge = {amount, currency, source};
 			console.log(`charging request: $amount  and token: $source`);
