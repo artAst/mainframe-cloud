@@ -1,19 +1,25 @@
 {
   "name": "functions",
   "description": "Cloud Functions for Firebase",
+  "scripts": {
+    "serve": "firebase serve --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
   "dependencies": {
-    "@google-cloud/logging": "^0.7.1",
-    "@sendgrid/mail": "^6.2.1",
+    "firebase-admin": "~6.0.0",
+    "firebase-functions": "^2.0.3",
+    "@sendgrid/mail": "^6.3.1",
     "dateformat": "^3.0.3",
     "fb": "^2.0.0",
-    "firebase-admin": "^5.12.0",
-    "firebase-functions": "^1.0.2",
-    "node-datetime": "^2.0.6",
-    "nodemailer": "^4.6.4",
+    "node-datetime": "^2.1.0",
+    "nodemailer": "^4.6.8",
     "nodemailer-sendgrid-transport": "^0.2.0",
-    "request": "^2.85.0",
+    "request": "^2.88.0",
     "request-promise": "^4.2.2",
-    "stripe": "^4.25.0"
+    "stripe": "^6.11.0"
   },
   "private": true
 }
