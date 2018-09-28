@@ -14,7 +14,7 @@ exports.handler = function(change, context) {
 	// This onWrite will trigger whenever anything is written to the path, so
 	// noop if the charge was deleted, errored out, or the Stripe API returned a result (id exists) 
 	if (val === null || val.id || val.error) return null;
-	return admin.database().ref(`/configuration/stripeSK`).once('value').then(snapshot => {
+	return admin.database().ref(`/configuration/public/stripeSK`).once('value').then(snapshot => {
 		console.log('stripe key retrieved: ' + snapshot.val());
 		return snapshot.val();
 	}).then(stripeKey => {
