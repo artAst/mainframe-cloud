@@ -1,28 +1,11 @@
 var dateTime = require('node-datetime');
 const sgMail = require('@sendgrid/mail');
 const admin = require('firebase-admin');
+const sendgridModule = require('./mail_util');
 
 const APP_NAME = 'BallroomGo';
 
-var SENDGRID_API_KEY = "";
-var INVOICE_TEMPLATE_ID = "";
-
-admin.database().ref('configuration/private/sendgridApiKey').once("value", function(data) {
-	console.log('Getting SENDGRID_API_KEY: ', data.val());
-	SENDGRID_API_KEY =  data.val();
-}).then( sucess => {	
-	sgMail.setApiKey(SENDGRID_API_KEY);
-});
-
-admin.database().ref('configuration/private/sendgridInvoiceTemplateId').once("value", function(data) {
-	console.log('Getting INVOICE_TEMPLATE_ID: ', data.val());
-	INVOICE_TEMPLATE_ID = data.val();
-});
-
 exports.handler = function(userEmail, userName, invoiceInfo) {
-	console.log('In function, using SENDGRID_API_KEY: ', SENDGRID_API_KEY);
-	console.log('In function, using INVOICE_TEMPLATE_ID: ', INVOICE_TEMPLATE_ID);
-	
 	if(userEmail != null && invoiceInfo != null) {
 		if(userName == null) {
 			userName = 'there';
@@ -137,7 +120,7 @@ exports.handler = function(userEmail, userName, invoiceInfo) {
 		  subject: `Payment invoice - ${APP_NAME}!`,
 		  text: ' ',
 		  html: '<p>' + invoiceHTMLbody + '</p>',
-		  templateId: INVOICE_TEMPLATE_ID,
+		  templateId: "INVOICE_TEMPLATE_ID",
 		  substitutions: {
 			userName: `${studioName}`,
 			invoiceDateTime: `${invoiceDateTime}`,
@@ -147,6 +130,6 @@ exports.handler = function(userEmail, userName, invoiceInfo) {
 			eventAddress: `${eventAddress}`,
 			},
 		};
-		return sgMail.send(msg);
+		return sendgridModule.handler("INVOICE_TEMPLATE", msg);
 	}
 }
