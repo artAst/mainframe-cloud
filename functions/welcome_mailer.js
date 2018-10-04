@@ -1,11 +1,34 @@
 const sgMail = require('@sendgrid/mail');
-const SENDGRID_API_KEY = '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'
-const WELCOME_TEMPLATE_ID = '6b5da578-706c-4fa4-9a3e-a037447a1294'
-const APP_NAME = 'Mainframe Dance System';
+const admin = require('firebase-admin');
 
-sgMail.setApiKey(SENDGRID_API_KEY);
+const APP_NAME = 'BallroomGo';
+
+var SENDGRID_API_KEY = "";
+var WELCOME_TEMPLATE_ID = "";
+var WELCOME_EMAIL_ENABLED = "";
+
+admin.database().ref('configuration/private/sendgridApiKey').once("value", function(data) {
+	console.log('Getting SENDGRID_API_KEY: ', data.val());
+	SENDGRID_API_KEY =  data.val();
+}).then( sucess => {	
+	sgMail.setApiKey(SENDGRID_API_KEY);
+});
+
+admin.database().ref('configuration/private/sendgridWelcomeTemplateId').once("value", function(data) {
+	console.log('Getting WELCOME_TEMPLATE_ID: ', data.val());
+	WELCOME_TEMPLATE_ID = data.val();
+});
+
+admin.database().ref('configuration/private/welcome_email_enable').once("value", function(data) {
+	console.log('Getting WELCOME_EMAIL_ENABLED: ', data.val());
+	WELCOME_EMAIL_ENABLED = data.val();
+})
 
 exports.handler = function(newUser) {
+	console.log('In function, using SENDGRID_API_KEY: ', SENDGRID_API_KEY);
+	console.log('In function, using WELCOME_TEMPLATE_ID: ', WELCOME_TEMPLATE_ID);
+	console.log('In function, using WELCOME_EMAIL_ENABLED: ', WELCOME_EMAIL_ENABLED);
+	
 	if(newUser != null && newUser.email != null) {
 		if(newUser.displayName == null) {
 			newUser.displayName = 'there';
