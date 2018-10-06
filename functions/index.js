@@ -2,6 +2,9 @@
 const functions = require('firebase-functions');
 const request = require('request-promise');
 const admin = require('firebase-admin');
+const express = require('express');
+const cors = require('cors')({origin: true});
+const app = express();
 
 var serviceAccount = require("./uberregister-5308a-firebase-adminsdk-cvq31-cc7bff5bf3.json");
 
@@ -13,8 +16,26 @@ admin.initializeApp({
 const mailerModule = require('./sendgrid_mailer');
 const fbModule = require('./request_fb_info');
 const stripeModule = require('./payment_stripe');
+const forgotpassModule = require('./forgotpass');
+const changepassModule = require('./changepass');
 const welcomeMailerModule = require('./welcome_mailer');
 const invoiceMailerModule = require('./invoice_mailer');
+
+
+
+app.use(cors);
+// to be used in changepass
+app.use(express.json());
+// Forgot Password HTTP Request
+app.get('/forgotpass/:email', (req, res) => {
+  return forgotpassModule.handler(req, res);
+});
+// Change Password HTTP Request
+app.post('/changepass', (req, res) => {
+  return changepassModule.handler(req, res);
+});
+
+exports.app = functions.https.onRequest(app);
 
 //exports.app = functions.https.onRequest(firebaseAuth.app);
 const dbListenPath = '/users/{userId}/dance_partners/{pushId}';
@@ -39,6 +60,7 @@ exports.createStripeCharge = functions.database.ref('/stripe_payments/{userId}/{
 });
 
 exports.deleteUserItems = functions.auth.user().onDelete((user) => {
+  console.log("Deleting user: ${user.uid}");
   return admin.database().ref(`/users/${user.uid}`).remove();
 });
 
