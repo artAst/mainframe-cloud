@@ -15,8 +15,8 @@ exports.handler = function(req, res) {
     // See the UserRecord reference doc for the contents of userRecord.
     console.log("Successfully fetched user data:", userRecord.uid);
     var dt = new Date();
-    const reqDate = moment.utc(dt).format("DD/MM/YYYY HH:mm:ss");
-    const exDate = moment.utc(dt).add(20, 'm').format("DD/MM/YYYY HH:mm:ss")
+    const reqDate = moment.utc(dt).format("YYYY/MM/DD HH:mm:ss");
+    const exDate = moment.utc(dt).add(20, 'm').format("YYYY/MM/DD HH:mm:ss")
     // create new node user_reset
     var user_reset = {
     	uid: userRecord.uid,
@@ -40,9 +40,9 @@ exports.handler = function(req, res) {
     		admin.database().ref(`user_reset/${customer.info.user_reset}`).once('value').then(snapdata => {
     			//console.log(snapdata.toJSON());
           var resetData = snapdata.val();
-          var now = moment.utc(dt).format("DD/MM/YYYY HH:mm:ss");
+          var now = moment.utc(dt).format("YYYY/MM/DD HH:mm:ss");
           var then = resetData.expiryDate;
-          var isBefore = moment(now,"DD/MM/YYYY HH:mm:ss").isBefore(moment(then,"DD/MM/YYYY HH:mm:ss"));
+          var isBefore = moment(now,"YYYY/MM/DD HH:mm:ss").isBefore(moment(then,"YYYY/MM/DD HH:mm:ss"));
           console.log(`${now} isBefore ${then} =`, isBefore);
           
           // check if more than 20 mins

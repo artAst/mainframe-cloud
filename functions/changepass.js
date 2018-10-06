@@ -28,9 +28,9 @@ exports.handler = function(req, res) {
     		res.send(json_res);
     	}
     	else {
-	    	var now = moment.utc(dt).format("DD/MM/YYYY HH:mm:ss");
+	    	var now = moment.utc(dt).format("YYYY/MM/DD HH:mm:ss");
 	      	var then = userReset.expiryDate;
-	      	var isBefore = moment(now,"DD/MM/YYYY HH:mm:ss").isBefore(moment(then,"DD/MM/YYYY HH:mm:ss"));
+	      	var isBefore = moment(now,"YYYY/MM/DD HH:mm:ss").isBefore(moment(then,"YYYY/MM/DD HH:mm:ss"));
 	      	console.log(`${now} isBefore ${then} =`, isBefore);
 
 	        if(!isBefore) {
