@@ -4,12 +4,29 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const moment = require('moment');
 const sendgridModule = require('./mail_util');
+// http request
+const request = require('request-promise');
+
+var shortlinks = "https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key=";
 
 exports.handler = function(req, res) {
   var json_res = {
   	code: 100,
   	message: "A Change Password instruction has been sent to your email. Please check"
   };
+
+  /*createShortLink("tokenIdaskdkjas").then(resp => {
+    console.log("request done", resp.shortLink);
+    /// Send email function
+    //sendForgotPassEmail(customer.info, resp);
+    res.json(json_res);
+  }).catch(function (error){
+    console.log(error.message);
+    json_res.code = 500;
+    json_res.message = "Internal error";
+    res.json(json_res);
+  });*/
+  
   admin.auth().getUserByEmail(req.params.email)
   .then(function(userRecord) {
     // See the UserRecord reference doc for the contents of userRecord.
@@ -32,9 +49,17 @@ exports.handler = function(req, res) {
 	    	console.log("Done saving user reset ID:", pushRef.key);
 	  		customer.info.user_reset = pushRef.key;
 	  		admin.database().ref(`users/${userRecord.uid}/info`).set(customer.info);
-        /// Send email function
-        sendForgotPassEmail(customer.info, pushRef.key);
-        res.json(json_res);
+        /// generate short link
+        createShortLink(pushRef.key).then(resp => {
+          console.log("request done");
+          /// Send email function
+          sendForgotPassEmail(customer.info, resp.shortLink);
+          res.json(json_res);
+        }).catch(function (error){
+          json_res.code = 500;
+          json_res.message = "Internal error";
+          res.json(json_res);
+        });
     	} else {
     		console.log("User Already sent request for change password:", customer.info.user_reset);
     		admin.database().ref(`user_reset/${customer.info.user_reset}`).once('value').then(snapdata => {
@@ -54,8 +79,17 @@ exports.handler = function(req, res) {
             console.log("Done saving user reset ID:", pushRef.key);
             customer.info.user_reset = pushRef.key;
             admin.database().ref(`users/${userRecord.uid}/info`).set(customer.info);
-            /// Send email function
-            sendForgotPassEmail(customer.info, pushRef.key);
+            /// generate short link
+            createShortLink(pushRef.key).then(resp => {
+              console.log("request done");
+              /// Send email function
+              sendForgotPassEmail(customer.info, resp.shortLink);
+              res.json(json_res);
+            }).catch(function (error){
+              json_res.code = 500;
+              json_res.message = "Internal error";
+              res.json(json_res);
+            });
           }
           json_res.code = 102;
           json_res.message = "Validation message.";
@@ -79,7 +113,40 @@ exports.handler = function(req, res) {
   });
 }
 
-function sendForgotPassEmail(newUser, tokenId) {
+async function createShortLink(tokenId) {
+  let response;
+  /// get web API key
+  var apiKey = await admin.database().ref('configuration/private/webApiKey').once('value');
+  if(!apiKey.val()) {
+    console.log("error cannot get web api key");
+    throw new new CustomError('Error occurred while get web API key');
+  }
+  console.log("web API Key:", apiKey.val());
+  shortlinks = shortlinks + apiKey.val();
+  console.log("shortlinks:", shortlinks);
+
+  var options = {
+    method: 'POST',
+    headers: {'content-type' : 'application/json'},
+    uri: shortlinks,
+    body: {
+      longDynamicLink: `https://ballroomgo.page.link/?link=https://ballroomgo.com/changepass?tokenId=${tokenId}&apn=com.danceframe.ballroomgo&ibi=com.danceframe.ballroomgo`
+    },
+    json: true // Automatically stringifies the body to JSON
+  };
+
+  return request(options);
+  /*if(!response) {
+    console.log("error with shortlink request");
+    throw new new CustomError('Error occurred while requesting shortlink');
+  }
+  else {
+    console.log("succeeded shortlink", response.shortLink);
+    return response.shortlink;
+  }*/
+}
+
+function sendForgotPassEmail(newUser, uri) {
   console.log("newUser:",newUser);
   const msg = {
     to: `${newUser.email}`,
@@ -90,9 +157,11 @@ function sendForgotPassEmail(newUser, tokenId) {
     templateId: "WELCOME_TEMPLATE_ID",
     substitutions: {
       userName: `${newUser.first_name}`,
-      tokenId: tokenId
+      uri: uri
     },
   };
   
-  sendgridModule.handler("FORGOTPASS_TEMPLATE", msg);
+  sendgridModule.handler("FORGOTPASS_TEMPLATE", msg).then(rdata => {
+    console.log("Email Sent.");
+  });
 }
