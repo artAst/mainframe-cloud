@@ -7,8 +7,6 @@ const sendgridModule = require('./mail_util');
 // http request
 const request = require('request-promise');
 
-var shortlinks = "https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key=";
-
 exports.handler = function(req, res) {
   var json_res = {
   	code: 100,
@@ -53,9 +51,12 @@ exports.handler = function(req, res) {
         createShortLink(pushRef.key).then(resp => {
           console.log("request done");
           /// Send email function
-          sendForgotPassEmail(customer.info, resp.shortLink);
-          res.json(json_res);
+          sendForgotPassEmail(customer.info, resp.shortLink).then(emailRes => {
+            console.log("Email sent...");
+            res.json(json_res);
+          });
         }).catch(function (error){
+          console.log("Error occured:", error.message);
           json_res.code = 500;
           json_res.message = "Internal error";
           res.json(json_res);
@@ -83,18 +84,23 @@ exports.handler = function(req, res) {
             createShortLink(pushRef.key).then(resp => {
               console.log("request done");
               /// Send email function
-              sendForgotPassEmail(customer.info, resp.shortLink);
-              res.json(json_res);
+              sendForgotPassEmail(customer.info, resp.shortLink).then(emailRes => {
+                console.log("Email sent...");
+                res.json(json_res);
+              });
             }).catch(function (error){
+              console.log("createShortLink error:", error.message);
               json_res.code = 500;
               json_res.message = "Internal error";
               res.json(json_res);
             });
           }
-          json_res.code = 102;
-          json_res.message = "Validation message.";
-          //json_res.message = "You already requested for a change password. Please check your email.";
-          res.json(json_res);
+          else {
+            json_res.code = 102;
+            json_res.message = "Validation message.";
+            //json_res.message = "You already requested for a change password. Please check your email.";
+            res.json(json_res);
+          }
     		})
         .catch(function(error) {
           console.log(`Error within user_reset function query`, error);
@@ -114,6 +120,7 @@ exports.handler = function(req, res) {
 }
 
 async function createShortLink(tokenId) {
+  var shortlinks = "https://firebasedynamiclinks.googleapis.com/v1/shortLinks?key=";
   let response;
   /// get web API key
   var apiKey = await admin.database().ref('configuration/private/webApiKey').once('value');
@@ -130,10 +137,12 @@ async function createShortLink(tokenId) {
     headers: {'content-type' : 'application/json'},
     uri: shortlinks,
     body: {
-      longDynamicLink: `https://ballroomgo.page.link/?link=https://ballroomgo.com/changepass?tokenId=${tokenId}&apn=com.danceframe.ballroomgo&ibi=com.danceframe.ballroomgo`
+      longDynamicLink: `https://ballroomgo.page.link/?link=https://ballroomgo.com/changepass?tokenId=${tokenId}&apn=com.danceframe.ballroomgo&isi=1360103285&ibi=com.danceframe.ballroomgo&efr=1`
     },
     json: true // Automatically stringifies the body to JSON
   };
+
+  console.log("link:", options.body.longDynamicLink);
 
   return request(options);
   /*if(!response) {
@@ -161,7 +170,5 @@ function sendForgotPassEmail(newUser, uri) {
     },
   };
   
-  sendgridModule.handler("FORGOTPASS_TEMPLATE", msg).then(rdata => {
-    console.log("Email Sent.");
-  });
+  return sendgridModule.handler("FORGOTPASS_TEMPLATE", msg);
 }
