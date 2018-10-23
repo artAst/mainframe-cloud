@@ -128,9 +128,9 @@ async function createShortLink(tokenId) {
     console.log("error cannot get web api key");
     throw new new CustomError('Error occurred while get web API key');
   }
-  console.log("web API Key:", apiKey.val());
+  //console.log("web API Key:", apiKey.val());
   shortlinks = shortlinks + apiKey.val();
-  console.log("shortlinks:", shortlinks);
+  //console.log("shortlinks:", shortlinks);
 
   var options = {
     method: 'POST',
