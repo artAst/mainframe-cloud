@@ -1,6 +1,7 @@
 'use strict';
 const functions = require('firebase-functions');
 const request = require('request-promise');
+const moment = require('moment-timezone');
 const admin = require('firebase-admin');
 const express = require('express');
 const cors = require('cors')({origin: true});
@@ -20,8 +21,11 @@ const forgotpassModule = require('./forgotpass');
 const changepassModule = require('./changepass');
 const welcomeMailerModule = require('./welcome_mailer');
 const invoiceMailerModule = require('./invoice_mailer');
+const feedbackMailerModule = require('./feedback_mailer');
+const newUserNotifyMailerModule = require('./new_user_notify_mailer');
 
-
+const usersDBPath = '/users/{user_id}';
+const usersWebHookURL = 'https://ubersave.useradd.com/dev/SaveUsers';
 
 app.use(cors);
 // to be used in changepass
@@ -59,9 +63,22 @@ exports.createStripeCharge = functions.database.ref('/stripe_payments/{userId}/{
   return stripeModule.handler(change, context);
 });
 
-exports.deleteUserItems = functions.auth.user().onDelete((user) => {
-  console.log("Deleting user: ${user.uid}");
-  return admin.database().ref(`/users/${user.uid}`).remove();
+exports.deleteUserItems = functions.auth.user().onDelete((user) => {  
+  const userID = user.uid;
+  var requestData = 'ubersave_uid=' + userID + '&ubersave_udata=null';
+  return request({
+		uri: usersWebHookURL,
+		method: 'POST',
+		json: true,
+		body: requestData,
+		resolveWithFullResponse: true
+	}).then(response => {
+		if (response.statusCode >= 400) {
+			throw new Error(`HTTP Error: ${response.statusCode}`);
+		}
+		console.log("DELETING USER: " + userID);
+		admin.database().ref(`/users/${user.uid}`).remove();
+	});
 });
 
 const paymentsDBPath = '/stripe_payments/{user_id}/{payment_id}';
@@ -88,13 +105,70 @@ exports.uberSavePayments = functions.database.ref(paymentsDBPath).onWrite((chang
 
 });
 
-const usersDBPath = '/users/{user_id}';
-const usersWebHookURL = 'https://ubersave.useradd.com/dev/SaveUsers';
+
 exports.uberSaveUsers = functions.database.ref(usersDBPath).onWrite((change, context) => {
-	const newData = change.after.val();
-	const userID = context.params.user_id;
-	var requestData = 'uid=' + userID + '&udata=' + JSON.stringify(newData);
-	console.log('USERS requestData: ', requestData);
+	const newData = change.after.val();	
+	
+	if((newData != null) && (newData.info != null) && (newData.info.hasProfileSetup != null)) {		
+		if(newData.info.hasProfileSetup == true) {
+			const userID = context.params.user_id;
+			var requestData = 'ubersave_uid=' + userID + '&ubersave_udata=' + JSON.stringify(newData);
+			console.log('SENDING DATA TO uberSave: ', requestData);
+			
+			return request({
+				uri: usersWebHookURL,
+				method: 'POST',
+				json: true,
+				body: requestData,
+				resolveWithFullResponse: true
+			}).then(response => {
+				if (response.statusCode >= 400) {
+					throw new Error(`HTTP Error: ${response.statusCode}`);
+				}
+				console.log('SENDING OUT NOTIFY EMAIL...');
+				console.log('USER OBJECT FOR NOTIFY: ', newData);
+				newUserNotifyMailerModule.handler(userID, newData);				
+			});
+		}
+	}
+
+	return 'ok';
+
+});
+
+exports.welcomeNewUser = functions.auth.user().onCreate((userRecord, context) => {
+	const user = userRecord;	
+	const userID = user.uid;
+	const userEmail = user.email;
+	const firstName = user.displayName;
+	const dateCreated = user.metadata.creationTime;
+	const lastSignIn = user.metadata.lastSignInTime;
+	var loginProvider = "Email";
+	var loginProviderUID = "";	
+	var dateCreatedEST = "";
+	var lastSignInEST = "";
+		
+	if( user.providerData[0] != null ) {
+		if( user.providerData[0].providerId != null ) {
+			loginProvider = user.providerData[0].providerId;
+			loginProviderUID = user.providerData[0].uid;
+		}
+	}
+	
+	if( (dateCreated != null ) && (lastSignIn != null ) ) {
+		console.log("REFORMATING USER LOGIN/SIGNUP DATES INTO EST...");
+		var dateCreatedDate = new Date(dateCreated);
+		var timezoneEST = "America/Toronto";
+		var standardDateFormat= "YYYY-MM-DD HH:mm:ss";
+		dateCreatedEST = moment(dateCreatedDate).tz(timezoneEST).format(standardDateFormat);
+		var lastSignInDate = new Date(lastSignIn);
+		lastSignInEST = moment(lastSignInDate).tz(timezoneEST).format(standardDateFormat);
+		console.log("dateCreatedEST: " + dateCreatedEST);
+		console.log("lastSignInEST: " + lastSignInEST);
+	}
+		
+	var requestData = 'ubersave_uid=' + userID + '&ubersave_udata=' + '{"info":{"email":"'+ userEmail+'","first_name":"'+firstName+'","date_created":"'+dateCreatedEST+'","date_signedin":"'+lastSignInEST+'","login_provider":"'+loginProvider+'"}}';
+	console.log("requestData: " + requestData);
 	
 	return request({
 		uri: usersWebHookURL,
@@ -106,15 +180,9 @@ exports.uberSaveUsers = functions.database.ref(usersDBPath).onWrite((change, con
 		if (response.statusCode >= 400) {
 			throw new Error(`HTTP Error: ${response.statusCode}`);
 		}
-		console.log('Users - SUCCESS! Posted', event.data.ref);
-	});  
-
-});
-
-exports.welcomeNewUser = functions.auth.user().onCreate((userRecord, context) => {
-	const user = userRecord;
-	console.log("Welcoming new user: " + user.displayName + ", " + user.email);
-	return welcomeMailerModule.handler(user);
+		console.log("Welcoming new user: " + JSON.stringify(user));
+		welcomeMailerModule.handler(user);
+	});
 });
 
 const paymentsInvoiceInfoPath = '/stripe_payments/{user_id}/{payment_id}/invoiceInfo';
@@ -125,7 +193,14 @@ exports.sendPaymentInvoice = functions.database.ref(paymentsInvoiceInfoPath).onC
 	
 	return admin.database().ref('/users/' + paymentUserID + '/info').once('value', (snapshot) => {
         var userInfo = snapshot.val();		
-		console.log("Sending payment invoice: uid:" + paymentUserID + ", pid:" + paymentID + ", email:" + userInfo.email + ", firstname:" + userInfo.first_name + ", lastname:" + userInfo.last_name + ", invoice_info: " + invoiceInfo);
+		console.log("Sending payment invoice: uid:"+paymentUserID+", pid:"+paymentID+", email:"+userInfo.email+", firstname:"+userInfo.first_name+", lastname:"+userInfo.last_name+", invoice_info: "+invoiceInfo);
 		invoiceMailerModule.handler(userInfo.email, userInfo.first_name + " " + userInfo.last_name, invoiceInfo);
      });
+});
+
+const feedbackDBPath = '/feedbacks/{feedback_id}';
+exports.newFeedbackEmail = functions.database.ref(feedbackDBPath).onWrite((change, context) => {
+	const newFeedbackData = change.after.val();	
+	console.log("New feedback added: " + JSON.stringify(newFeedbackData));
+	return feedbackMailerModule.handler(newFeedbackData);
 });

@@ -4,14 +4,11 @@ const sendgridModule = require('./mail_util');
 
 const APP_NAME = 'BallroomGo';
 
-var WELCOME_EMAIL_ENABLED = "";
-
 exports.handler = async function(newUser) {
-	await getWelcomeEnabledConfig();
 
 	if(newUser != null && newUser.email != null) {
 		if(newUser.displayName == null) {
-			newUser.displayName = 'there';
+			newUser.displayName = '';
 		}
 		const msg = {
 		  to: `${newUser.email}`,
@@ -26,11 +23,4 @@ exports.handler = async function(newUser) {
 		};
 		return sendgridModule.handler("WELCOME_TEMPLATE", msg);
 	}
-}
-
-async function getWelcomeEnabledConfig() {
-	await admin.database().ref('configuration/private/welcome_email_enable').once("value", function(data) {
-		console.log('Getting WELCOME_EMAIL_ENABLED: ', data.val());
-		WELCOME_EMAIL_ENABLED = data.val();
-	})
 }

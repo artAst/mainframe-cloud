@@ -36,7 +36,7 @@ exports.handler = function(token, uid) {
 	    });
 	});
 	// get taggable friends for users
-	requestTaggableFriends(fooApp, uid, "");
+	//requestTaggableFriends(fooApp, uid, "");
 }
 
 function requestTaggableFriends(fooApp, uid, after) {
