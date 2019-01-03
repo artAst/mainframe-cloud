@@ -23,6 +23,7 @@ const welcomeMailerModule = require('./welcome_mailer');
 const invoiceMailerModule = require('./invoice_mailer');
 const feedbackMailerModule = require('./feedback_mailer');
 const newUserNotifyMailerModule = require('./new_user_notify_mailer');
+const adminNotifModule = require('./admin_notif');
 
 const usersDBPath = '/users/{user_id}';
 const usersWebHookURL = 'https://ubersave.useradd.com/dev/SaveUsers';
@@ -57,6 +58,14 @@ exports.fbPullInfo = functions.database.ref(fbRequestPath).onCreate((snap, conte
 	console.log("token: "+fbToken);
 	fbModule.handler(fbToken, uid);
 	return snap.ref.set(fbToken);
+});
+
+const notifPath = '/admin_notification/{pushId}';
+exports.adminNotif = functions.database.ref(notifPath).onCreate((snap, context) => {
+  const admin_notification = snap.val();
+  console.log(admin_notification.email);
+  adminNotifModule.handler(admin_notification);
+  return snap.ref.set(admin_notification);
 });
 
 exports.createStripeCharge = functions.database.ref('/stripe_payments/{userId}/{paymentId}').onWrite((change, context) => {
